@@ -1,2 +1,2 @@
 # replay_vectorized
-A Trading Simulator written with Apache Spark
+A trading simulator written with Apache Spark
