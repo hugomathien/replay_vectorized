@@ -2,9 +2,9 @@
   "paragraphs": [
     {
       "title": "Hedged Index",
-      "text": "%spark\nimport org.apache.spark.sql.expressions.MutableAggregationBuffer\nimport org.apache.spark.sql.expressions.UserDefinedAggregateFunction\nimport org.apache.spark.sql.Row\nimport org.apache.spark.sql.types._\n\nclass HedgedIndex extends UserDefinedAggregateFunction {\n  // This is the input fields for your aggregate function.\n  override def inputSchema \u003d new StructType()\n                                .add(\"isTradingDay\", BooleanType)\n                                .add(\"stockPrice\", DoubleType,true)\n                                .add(\"hedgePrice\", DoubleType,true)\n \n  \n  // This is the internal fields you keep for computing your aggregate.\n  override def bufferSchema: StructType \u003d StructType(\n    StructField(\"index\", DoubleType) ::\n    StructField(\"stockPrice\", DoubleType) ::\n    StructField(\"hedgePrice\", DoubleType) :: Nil\n  )\n\n  // This is the output type of your aggregatation function.\n  override def dataType: DataType \u003d DoubleType\n\n  override def deterministic: Boolean \u003d true\n\n  // This is the initial value for your buffer schema.\n  override def initialize(buffer: MutableAggregationBuffer): Unit \u003d {\n    buffer(0) \u003d 1D\n    buffer(1) \u003d 0D\n    buffer(2) \u003d 0D\n  }\n\n  // This is how to update your buffer schema given an input.\n  override def update(buffer: MutableAggregationBuffer, input: Row): Unit \u003d {\n      \n    var isTradingDay \u003d input.getBoolean(0)\n    \n    if(isTradingDay \u0026\u0026 (input.isNullAt(1) \u003d\u003d false \u0026\u0026 input.isNullAt(2) \u003d\u003d false)) {\n        val stock_price \u003d input.getDouble(1)\n        val hedge_price\u003d input.getDouble(2)\n        \n        val previous_stock_price \u003d if (buffer.getAs[Double](1) \u003e 0D) buffer.getAs[Double](1) else stock_price\n        val previous_hedge_price \u003d if (buffer.getAs[Double](2) \u003e 0D) buffer.getAs[Double](2) else hedge_price\n        \n        buffer(0) \u003d buffer.getAs[Double](0) * (1 + (stock_price / previous_stock_price) - (hedge_price / previous_hedge_price))\n        buffer(1) \u003d stock_price\n        buffer(2) \u003d hedge_price\n    }\n      \n  }\n\n  // This is how to merge two objects with the bufferSchema type.\n  override def merge(buffer1: MutableAggregationBuffer, buffer2: Row): Unit \u003d {\n    //buffer1(0) \u003d buffer1.getAs[Boolean](0)\n    //buffer1(1) \u003d buffer1.getAs[Double](1) * buffer2.getAs[Double](1)\n  }\n\n  // This is where you output the final value, given the final value of your bufferSchema.\n  override def evaluate(buffer: Row): Any \u003d {\n    buffer.getDouble(0)\n  }\n}\n\nspark.udf.register(\"hedgedIndex\", new HedgedIndex)\n",
+      "text": "%spark\nimport org.apache.spark.sql.expressions.MutableAggregationBuffer\nimport org.apache.spark.sql.expressions.UserDefinedAggregateFunction\nimport org.apache.spark.sql.Row\nimport org.apache.spark.sql.types._\n\nclass HedgedIndex extends UserDefinedAggregateFunction {\n  // This is the input fields for your aggregate function.\n  override def inputSchema \u003d new StructType()\n                                .add(\"isTradingDay\", BooleanType)\n                                .add(\"stockPrice\", DoubleType,true)\n                                .add(\"hedgePrice\", DoubleType,true)\n \n  \n  // This is the internal fields you keep for computing your aggregate.\n  override def bufferSchema: StructType \u003d StructType(\n    StructField(\"index\", DoubleType) ::\n    StructField(\"stockPrice\", DoubleType) ::\n    StructField(\"hedgePrice\", DoubleType) :: Nil\n  )\n\n  // This is the output type of your aggregatation function.\n  override def dataType: DataType \u003d DoubleType\n\n  override def deterministic: Boolean \u003d true\n\n  // This is the initial value for your buffer schema.\n  override def initialize(buffer: MutableAggregationBuffer): Unit \u003d {\n    buffer(0) \u003d 1D\n    buffer(1) \u003d 0D\n    buffer(2) \u003d 0D\n  }\n\n  // This is how to update your buffer schema given an input.\n  override def update(buffer: MutableAggregationBuffer, input: Row): Unit \u003d {\n      \n    var isTradingDay \u003d input.getBoolean(0)\n    \n    if(isTradingDay \u0026\u0026 (input.isNullAt(1) \u003d\u003d false \u0026\u0026 input.isNullAt(2) \u003d\u003d false)) {\n        val stock_price \u003d input.getDouble(1)\n        val hedge_price\u003d input.getDouble(2)\n        \n        val previous_stock_price \u003d if (buffer.getAs[Double](1) \u003e 0D) buffer.getAs[Double](1) else stock_price\n        val previous_hedge_price \u003d if (buffer.getAs[Double](2) \u003e 0D) buffer.getAs[Double](2) else hedge_price\n        val newIdx \u003d buffer.getAs[Double](0) * (1 + (stock_price / previous_stock_price) - (hedge_price / previous_hedge_price))\n        if(newIdx\u003e0) {\n            buffer(0) \u003d buffer.getAs[Double](0) * (1 + (stock_price / previous_stock_price) - (hedge_price / previous_hedge_price))\n            buffer(1) \u003d stock_price\n            buffer(2) \u003d hedge_price\n        }\n    }\n      \n  }\n\n  // This is how to merge two objects with the bufferSchema type.\n  override def merge(buffer1: MutableAggregationBuffer, buffer2: Row): Unit \u003d {\n    //buffer1(0) \u003d buffer1.getAs[Boolean](0)\n    //buffer1(1) \u003d buffer1.getAs[Double](1) * buffer2.getAs[Double](1)\n  }\n\n  // This is where you output the final value, given the final value of your bufferSchema.\n  override def evaluate(buffer: Row): Any \u003d {\n    buffer.getDouble(0)\n  }\n}\n\nspark.udf.register(\"hedgedIndex\", new HedgedIndex)\n",
       "user": "anonymous",
-      "dateUpdated": "2023-08-30 15:15:01.993",
+      "dateUpdated": "2024-04-15 13:43:03.318",
       "progress": 0,
       "config": {
         "lineNumbers": true,
@@ -30,7 +30,7 @@
         "msg": [
           {
             "type": "TEXT",
-            "data": "\u001b[33mwarning: \u001b[0mthere were two deprecation warnings (since 3.0.0); for details, enable `:setting -deprecation\u0027 or `:replay -deprecation\u0027\nimport org.apache.spark.sql.expressions.MutableAggregationBuffer\nimport org.apache.spark.sql.expressions.UserDefinedAggregateFunction\nimport org.apache.spark.sql.Row\nimport org.apache.spark.sql.types._\ndefined class HedgedIndex\n\u001b[1m\u001b[34mres1\u001b[0m: \u001b[1m\u001b[32morg.apache.spark.sql.expressions.UserDefinedAggregateFunction\u001b[0m \u003d HedgedIndex@3adc1452\n"
+            "data": "\u001b[33mwarning: \u001b[0mthere were two deprecation warnings (since 3.0.0); for details, enable `:setting -deprecation\u0027 or `:replay -deprecation\u0027\nimport org.apache.spark.sql.expressions.MutableAggregationBuffer\nimport org.apache.spark.sql.expressions.UserDefinedAggregateFunction\nimport org.apache.spark.sql.Row\nimport org.apache.spark.sql.types._\ndefined class HedgedIndex\n\u001b[1m\u001b[34mres24\u001b[0m: \u001b[1m\u001b[32morg.apache.spark.sql.expressions.UserDefinedAggregateFunction\u001b[0m \u003d HedgedIndex@7c52d1b5\n"
           }
         ]
       },
@@ -40,14 +40,137 @@
       "jobName": "paragraph_1664876478222_521287973",
       "id": "paragraph_1664876478222_521287973",
       "dateCreated": "2022-10-04 09:41:18.223",
-      "dateStarted": "2023-08-30 15:15:02.015",
-      "dateFinished": "2023-08-30 15:15:29.852",
+      "dateStarted": "2024-04-15 13:43:03.327",
+      "dateFinished": "2024-04-15 13:43:03.576",
+      "status": "FINISHED"
+    },
+    {
+      "text": "%spark\n0.11425879034885124 * (1+(0.01 / 12.5) - (6344.363/6053.415))",
+      "user": "anonymous",
+      "dateUpdated": "2024-04-15 13:29:50.711",
+      "progress": 0,
+      "config": {
+        "colWidth": 12.0,
+        "fontSize": 9.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false,
+          "completionKey": "TAB",
+          "completionSupport": true
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "results": {
+        "code": "SUCCESS",
+        "msg": [
+          {
+            "type": "TEXT",
+            "data": "\u001b[1m\u001b[34mres9\u001b[0m: \u001b[1m\u001b[32mDouble\u001b[0m \u003d -0.00540026445140702\n"
+          }
+        ]
+      },
+      "apps": [],
+      "runtimeInfos": {},
+      "progressUpdateIntervalMs": 500,
+      "jobName": "paragraph_1664879655878_12494762",
+      "id": "paragraph_1664879655878_12494762",
+      "dateCreated": "2022-10-04 10:34:15.878",
+      "dateStarted": "2024-04-15 13:29:50.720",
+      "dateFinished": "2024-04-15 13:29:50.861",
+      "status": "FINISHED"
+    },
+    {
+      "text": "%spark\n(6344.363/6053.415-1)",
+      "user": "anonymous",
+      "dateUpdated": "2024-04-15 13:36:52.896",
+      "progress": 0,
+      "config": {
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false,
+          "completionKey": "TAB",
+          "completionSupport": true
+        },
+        "colWidth": 12.0,
+        "editorMode": "ace/mode/scala",
+        "fontSize": 9.0,
+        "results": {},
+        "enabled": true
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "results": {
+        "code": "SUCCESS",
+        "msg": [
+          {
+            "type": "TEXT",
+            "data": "\u001b[1m\u001b[34mres18\u001b[0m: \u001b[1m\u001b[32mDouble\u001b[0m \u003d 0.048063448483211646\n"
+          }
+        ]
+      },
+      "apps": [],
+      "runtimeInfos": {},
+      "progressUpdateIntervalMs": 500,
+      "jobName": "paragraph_1713187463045_1787111277",
+      "id": "paragraph_1713187463045_1787111277",
+      "dateCreated": "2024-04-15 13:24:23.047",
+      "dateStarted": "2024-04-15 13:36:52.904",
+      "dateFinished": "2024-04-15 13:36:53.024",
+      "status": "FINISHED"
+    },
+    {
+      "text": "%spark\n(0.01 / 12.5-1)",
+      "user": "anonymous",
+      "dateUpdated": "2024-04-15 13:36:58.663",
+      "progress": 0,
+      "config": {
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false,
+          "completionKey": "TAB",
+          "completionSupport": true
+        },
+        "colWidth": 12.0,
+        "editorMode": "ace/mode/scala",
+        "fontSize": 9.0,
+        "results": {},
+        "enabled": true
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "results": {
+        "code": "SUCCESS",
+        "msg": [
+          {
+            "type": "TEXT",
+            "data": "\u001b[1m\u001b[34mres20\u001b[0m: \u001b[1m\u001b[32mDouble\u001b[0m \u003d -0.9992\n"
+          }
+        ]
+      },
+      "apps": [],
+      "runtimeInfos": {},
+      "progressUpdateIntervalMs": 500,
+      "jobName": "paragraph_1713187803665_1464653040",
+      "id": "paragraph_1713187803665_1464653040",
+      "dateCreated": "2024-04-15 13:30:03.666",
+      "dateStarted": "2024-04-15 13:36:58.671",
+      "dateFinished": "2024-04-15 13:36:58.783",
       "status": "FINISHED"
     },
     {
       "text": "%spark\n",
       "user": "anonymous",
-      "dateUpdated": "2022-10-04 10:34:15.879",
+      "dateUpdated": "2024-04-15 13:30:50.957",
       "progress": 0,
       "config": {},
       "settings": {
@@ -57,9 +180,9 @@
       "apps": [],
       "runtimeInfos": {},
       "progressUpdateIntervalMs": 500,
-      "jobName": "paragraph_1664879655878_12494762",
-      "id": "paragraph_1664879655878_12494762",
-      "dateCreated": "2022-10-04 10:34:15.878",
+      "jobName": "paragraph_1713187850957_1173075346",
+      "id": "paragraph_1713187850957_1173075346",
+      "dateCreated": "2024-04-15 13:30:50.957",
       "status": "READY"
     }
   ],
